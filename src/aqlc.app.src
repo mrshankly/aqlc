@@ -1,0 +1,6 @@
+{application, aqlc, [
+    {description, "AQL Client"},
+    {vsn, "0.1.0"},
+    %% {modules, []},
+    {applications, [kernel, stdlib, crypto, ssl]}
+]}.

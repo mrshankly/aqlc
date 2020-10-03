@@ -27,7 +27,7 @@ send(Pid, Data) ->
 init({Address, Port, Options}) ->
     Timeout = proplists:get_value(timeout, Options, ?DEFAULT_CONNECT_TIMEOUT),
 
-    case gen_tcp:connect(Address, Port, [], Timeout) of
+    case gen_tcp:connect(Address, Port, [binary, {active, false}], Timeout) of
         {ok, Socket} ->
             {ok, #state{socket = Socket}};
         {error, Reason} ->
@@ -37,7 +37,8 @@ init({Address, Port, Options}) ->
 handle_call({send, Data}, _From, State = #state{socket = Socket}) ->
     case gen_tcp:send(Socket, Data) of
         ok ->
-            {reply, ok, State};
+            Response = gen_tcp:recv(Socket, 0, ?DEFAULT_RECEIVE_TIMEOUT),
+            {reply, Response, State};
         Error = {error, _Reason} ->
             {reply, Error, State}
     end;

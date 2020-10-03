@@ -17,3 +17,6 @@ _build
 *.iml
 rebar3.crashdump
 *~
+
+src/aql_pb.erl
+include/aql_pb.hrl

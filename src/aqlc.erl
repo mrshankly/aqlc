@@ -3,6 +3,7 @@
 -export([connect/2, connect/3, close/1, query/2]).
 
 -include("aqlc.hrl").
+-include("aql_pb.hrl").
 
 -spec connect(address(), port_number()) -> {ok, connection()} | {error, term()}.
 connect(Address, Port) ->
@@ -19,4 +20,9 @@ close(Connection) ->
 
 -spec query(connection(), iodata()) -> ok | {error, term()}.
 query(Connection, Query) ->
-    aqlc_tcp:send(Connection, Query).
+    Request = #'Request'{
+        type = 'QUERY',
+        query = Query
+    },
+    Message = aql_pb:encode_msg(Request),
+    aqlc_tcp:send(Connection, Message).

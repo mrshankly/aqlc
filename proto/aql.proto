@@ -9,3 +9,8 @@ message Request {
     Type type = 1;
     bytes query = 2;
 }
+
+message QueryResponse {
+    bytes response = 1;
+    bytes error = 2;
+}

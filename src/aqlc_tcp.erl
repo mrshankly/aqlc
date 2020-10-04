@@ -20,7 +20,7 @@ start_link(Address, Port, Options) ->
 stop(Pid) ->
     gen_server:call(Pid, stop).
 
--spec send(pid(), iodata()) -> ok | {error, term()}.
+-spec send(pid(), iodata()) -> {ok, binary()} | {error, term()}.
 send(Pid, Data) ->
     gen_server:call(Pid, {send, Data}).
 

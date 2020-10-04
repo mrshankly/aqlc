@@ -18,11 +18,12 @@ connect(Address, Port, Opts) ->
 close(Connection) ->
     aqlc_tcp:stop(Connection).
 
--spec query(connection(), iodata()) -> ok | {error, term()}.
+-spec query(connection(), iodata()) -> {ok, term()} | {error, term()}.
 query(Connection, Query) ->
-    Request = #'Request'{
-        type = 'QUERY',
-        query = Query
-    },
-    Message = aql_pb:encode_msg(Request),
-    aqlc_tcp:send(Connection, Message).
+    Message = aql_pb:encode_msg(#'Request'{type = 'QUERY', query = Query}),
+    case aqlc_tcp:send(Connection, Message) of
+        {ok, Response} ->
+            {ok, aql_pb:decode_msg(Response, 'QueryResponse')};
+        Error ->
+            Error
+    end.

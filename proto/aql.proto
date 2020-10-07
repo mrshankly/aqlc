@@ -1,16 +1,33 @@
 syntax = "proto3";
 
+// Represents a request message from a client to a server.
+//
+// The `type` field is mandatory, the fields `query` and `tables` may
+// or may not be mandatory, depending on the request type.
+//
+// The field `query` is mandatory when the request type is either `QUERY`
+// or `QUERY_AND_METADATA`. `query` must contain an AQL query.
+//
+// The field `tables` is mandatory when the request type is either `METADATA`
+// or `QUERY_AND_METADATA`. `tables` must contain a comma separated list of
+// table names, e.g. "table1,table2,table3".
 message Request {
     enum Type {
         QUERY = 0;
         METADATA = 1;
+        QUERY_AND_METADATA = 2;
     }
 
     Type type = 1;
     bytes query = 2;
+    string tables = 3;
 }
 
-message QueryResponse {
-    bytes response = 1;
-    bytes error = 2;
+// Represents a response message from a server to a client.
+message Response {
+    bytes query = 1;
+    bytes query_error = 2;
+
+    bytes metadata = 3;
+    bytes metadata_error = 4;
 }

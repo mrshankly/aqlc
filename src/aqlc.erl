@@ -35,17 +35,31 @@ query(Connection, Query) ->
 
 rewrite_query(Connection, Query) ->
     case parse_query(Query) of
+        % Rewrite `CREATE` queries when there are attributes with a default values.
         {ok, [AST = {create, _}]} ->
-            % TODO encrypt default values
             {ok, aql_pb:encode_msg(#'Request'{type = 'QUERY', query = term_to_binary(AST)})};
+
+        % Rewrite all `INSERT` queries. Values must be encrypted according to encryption type
+        % specified in the `CREATE` query.
         {ok, [{insert, {Table, ?PARSER_WILDCARD, Values}}]} ->
-            EncryptedValues = encrypt_values(Connection, Table, [], Values),
+            Metadata = fetch_metadata(Connection),
+            EncryptedValues = encrypt_values(Metadata, Table, [], Values),
             Insert = {insert, {Table, ?PARSER_WILDCARD, EncryptedValues}},
             {ok, aql_pb:encode_msg(#'Request'{type = 'QUERY', query = term_to_binary(Insert)})};
         {ok, [{insert, {Table, Keys, Values}}]} ->
-            EncryptedValues = encrypt_values(Connection, Table, Keys, Values),
+            Metadata = fetch_metadata(Connection),
+            EncryptedValues = encrypt_values(Metadata, Table, Keys, Values),
             Insert = {insert, {Table, Keys, EncryptedValues}},
             {ok, aql_pb:encode_msg(#'Request'{type = 'QUERY', query = term_to_binary(Insert)})};
+
+        % Similar to `INSERT`, values present in `UPDATE` queries must be encrypted.
+        {ok, [AST = {update, _}]} ->
+            _Metadata = fetch_metadata(Connection),
+            {ok, aql_pb:encode_msg(#'Request'{type = 'QUERY', query = term_to_binary(AST)})};
+
+        % `SELECT` queries don't actually need to be rewritten, the result however, needs to
+        % be decrypted. For this reason a special request is made to the server. The client
+        % asks the server for the table metadata, so that it knows how to decrypt the result.
         {ok, [AST = {select, {Table, _Projection, _Where}}]} ->
             {ok,
                 aql_pb:encode_msg(#'Request'{
@@ -53,6 +67,7 @@ rewrite_query(Connection, Query) ->
                     query = term_to_binary(AST),
                     tables = atom_to_list(Table)
                 })};
+
         {ok, [AST]} ->
             {ok, aql_pb:encode_msg(#'Request'{type = 'QUERY', query = term_to_binary(AST)})};
         {error, Reason, Line} ->
@@ -67,6 +82,9 @@ parse_query(Query) ->
             Error
     end.
 
-encrypt_values(_Connection, _Table, _Keys, Values) ->
+fetch_metadata(_Connection) ->
+    [].
+
+encrypt_values(_Metadata, _Table, _Keys, Values) ->
     % TODO: actually get metadata and encrypt values accordingly.
     Values.

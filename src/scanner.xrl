@@ -101,7 +101,9 @@ Rules.
 
 % attribute encryption types
 (enc|ENC) : {token, ?ATTR_ENC(?AQL_ENCRYPTED)}.
+(dtenc|DTENC) : {token, ?ATTR_ENC(?AQL_DT_ENCRYPTED)}.
 (openc|OPENC) : {token, ?ATTR_ENC(?AQL_OP_ENCRYPTED)}.
+(hmenc|HMENC) : {token, ?ATTR_ENC(?AQL_HM_ENCRYPTED)}.
 
 % boolean atoms
 (false|FALSE) : {token, ?PARSER_BOOLEAN(false)}.

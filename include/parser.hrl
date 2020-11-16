@@ -8,7 +8,9 @@
 
 % Encryption types.
 -define(AQL_ENCRYPTED, encrypted).
+-define(AQL_DT_ENCRYPTED, deterministic_encrypted).
 -define(AQL_OP_ENCRYPTED, order_preserving_encrypted).
+-define(AQL_HM_ENCRYPTED, homomorphic_encrypted).
 
 -define(AQL_INTEGER, integer).
 -define(AQL_VARCHAR, varchar).

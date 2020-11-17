@@ -4,6 +4,8 @@
 % TODO remove
 -export([parse_query/1, rewrite_query/3, fetch_metadata/2, encrypt_where/3]).
 
+-include_lib("kernel/include/logger.hrl").
+
 -include("aqlc.hrl").
 -include("aql_pb.hrl").
 -include("parser.hrl").
@@ -29,7 +31,7 @@ query(Connection, Query) ->
             Message = aql_pb:encode_msg(#'Request'{type = 'QUERY', query = term_to_binary(AST)}),
             case aqlc_tcp:send(Connection, Message) of
                 {ok, Response} ->
-                    {ok, aql_pb:decode_msg(Response, 'Response')};
+                    decode_response(Response);
                 Error ->
                     Error
             end;
@@ -43,12 +45,36 @@ query(Connection, Query, Key) ->
         {ok, Message} ->
             case aqlc_tcp:send(Connection, Message) of
                 {ok, Response} ->
-                    {ok, aql_pb:decode_msg(Response, 'Response')};
+                    decode_response(Response);
+                Error ->
+                    Error
+            end;
+        {ok, Message, Metadata} ->
+            case aqlc_tcp:send(Connection, Message) of
+                {ok, Response} ->
+                    decode_response(Response, Metadata, Key);
                 Error ->
                     Error
             end;
         Error = {error, _Reason} ->
             Error
+    end.
+
+decode_response(RawResponse) ->
+    case aql_pb:decode_msg(RawResponse, 'Response') of
+        #'Response'{query_error = Error} when Error /= <<>> ->
+            {error, binary_to_term(Error)};
+        #'Response'{query = QueryResponse} ->
+            {ok, binary_to_term(QueryResponse)}
+    end.
+
+decode_response(RawResponse, Metadata, Key) ->
+    case aql_pb:decode_msg(RawResponse, 'Response') of
+        #'Response'{query_error = Error} when Error /= <<>> ->
+            {error, binary_to_term(Error)};
+        #'Response'{query = QueryResponse} ->
+            [Values] = binary_to_term(QueryResponse),
+            {ok, [decrypt_values(Metadata, Values, Key)]}
     end.
 
 %% erlfmt-ignore
@@ -68,7 +94,9 @@ rewrite_query(Connection, Query, Key) ->
             ),
 
             EncryptedAST =
-                ?CREATE_CLAUSE(?T_TABLE(Name, Policy, EncryptedCols, FKeys, Indexes, PartitionCol)),
+                ?CREATE_CLAUSE(
+                    ?T_TABLE(Name, Policy, EncryptedCols, FKeys, Indexes, PartitionCol)
+                ),
             {ok,
                 aql_pb:encode_msg(#'Request'{type = 'QUERY', query = term_to_binary(EncryptedAST)})};
 
@@ -93,17 +121,18 @@ rewrite_query(Connection, Query, Key) ->
             Update = ?UPDATE_CLAUSE({Table, {set, EncryptedOperations}, EncryptedConstraint}),
             {ok, aql_pb:encode_msg(#'Request'{type = 'QUERY', query = term_to_binary(Update)})};
 
-        % `SELECT` queries don't actually need to be rewritten, the result however, needs to
-        % be decrypted. For this reason a special request is made to the server. The client
-        % asks the server for the table metadata, so that it knows how to decrypt the result.
+        % Encrypt where clause of `SELECT` queries, the result also needs to be decrypted.
+        % For this reason we return a three element tuple, where the third element is the
+        % metadata. This avoid having the request the metadata twice, once for encrypting
+        % the where clause, another for decrypting the response.
         {ok, [?SELECT_CLAUSE({Table, Projection, Where})]} ->
             Metadata = fetch_metadata(Connection, Table),
             EncryptedWhere = encrypt_where(Metadata, Where, Key),
             Select = ?SELECT_CLAUSE({Table, Projection, EncryptedWhere}),
-            {ok, aql_pb:encode_msg(#'Request'{type = 'QUERY', query = term_to_binary(Select)})};
+            {ok, aql_pb:encode_msg(#'Request'{type = 'QUERY', query = term_to_binary(Select)}), Metadata};
 
         {ok, [AST]} ->
-            % TODO add debug logging here.
+            ?LOG_DEBUG("SKIP QUERY REWRITE: ~p", [AST]),
             {ok, aql_pb:encode_msg(#'Request'{type = 'QUERY', query = term_to_binary(AST)})};
 
         {error, Reason, Line} ->
@@ -144,6 +173,28 @@ fetch_metadata(Connection, Table) when is_list(Table) ->
         Error ->
             Error
     end.
+
+decrypt_value(encrypted, Value, Key) ->
+    binary_to_term(aqlc_crypto:probabilistic_decrypt(Value, Key));
+decrypt_value(deterministic_encrypted, Value, Key) ->
+    binary_to_term(aqlc_crypto:deterministic_decrypt(Value, Key));
+decrypt_value(plain, Value, _Key) ->
+    Value.
+
+decrypt_values(Metadata, Values, Key) ->
+    lists:map(
+        fun(V) ->
+            lists:map(
+                fun({Column, Value}) ->
+                    EncryptionType = proplists:get_value(Column, Metadata),
+                    Plaintext = decrypt_value(EncryptionType, Value, Key),
+                    {Column, Plaintext}
+                end,
+                V
+            )
+        end,
+        Values
+    ).
 
 encrypt_value(encrypted, Value, Key) ->
     aqlc_crypto:probabilistic_encrypt(term_to_binary(Value), Key);

@@ -103,19 +103,19 @@ rewrite_query(Connection, Query, Key) ->
         % Rewrite all `INSERT` queries. Values must be encrypted according to encryption type
         % specified in the `CREATE` query.
         {ok, [?INSERT_CLAUSE({Table, ?PARSER_WILDCARD, Values})]} ->
-            Metadata = fetch_metadata(Connection, Table),
+            {ok, Metadata} = fetch_metadata(Connection, Table),
             EncryptedValues = encrypt_values(Metadata, [], Values, Key),
             Insert = ?INSERT_CLAUSE({Table, ?PARSER_WILDCARD, EncryptedValues}),
             {ok, aql_pb:encode_msg(#'Request'{type = 'QUERY', query = term_to_binary(Insert)})};
         {ok, [?INSERT_CLAUSE({Table, Keys, Values})]} ->
-            Metadata = fetch_metadata(Connection, Table),
+            {ok, Metadata} = fetch_metadata(Connection, Table),
             EncryptedValues = encrypt_values(Metadata, Keys, Values, Key),
             Insert = ?INSERT_CLAUSE({Table, Keys, EncryptedValues}),
             {ok, aql_pb:encode_msg(#'Request'{type = 'QUERY', query = term_to_binary(Insert)})};
 
         % Similar to `INSERT`, values present in `UPDATE` queries must be encrypted.
         {ok, [?UPDATE_CLAUSE({Table, {set, Operations}, Constraint})]} ->
-            Metadata = fetch_metadata(Connection, Table),
+            {ok, Metadata} = fetch_metadata(Connection, Table),
             EncryptedOperations = encrypt_operations(Metadata, Operations, Key),
             [EncryptedConstraint] = encrypt_operations(Metadata, [Constraint], Key),
             Update = ?UPDATE_CLAUSE({Table, {set, EncryptedOperations}, EncryptedConstraint}),
@@ -126,7 +126,7 @@ rewrite_query(Connection, Query, Key) ->
         % metadata. This avoid having the request the metadata twice, once for encrypting
         % the where clause, another for decrypting the response.
         {ok, [?SELECT_CLAUSE({Table, Projection, Where})]} ->
-            Metadata = fetch_metadata(Connection, Table),
+            {ok, Metadata} = fetch_metadata(Connection, Table),
             EncryptedWhere = encrypt_where(Metadata, Where, Key),
             Select = ?SELECT_CLAUSE({Table, Projection, EncryptedWhere}),
             {ok, aql_pb:encode_msg(#'Request'{type = 'QUERY', query = term_to_binary(Select)}), Metadata};
@@ -204,13 +204,13 @@ encrypt_value(plain, Value, _Key) ->
     Value.
 
 encrypt_all([], [], Acc, _Key) ->
-    Acc;
+    lists:reverse(Acc);
 encrypt_all([{_, EncryptionType} | Metadata], [Value | Values], Acc, Key) ->
     EncryptedValue = encrypt_value(EncryptionType, Value, Key),
     encrypt_all(Metadata, Values, [EncryptedValue | Acc], Key).
 
 encrypt_some(_Metadata, [], [], Acc, _Key) ->
-    Acc;
+    lists:reverse(Acc);
 encrypt_some(Metadata, [Column | Columns], [Value | Values], Acc, Key) ->
     EncryptionType = proplists:get_value(Column, Metadata),
     EncryptedValue = encrypt_value(EncryptionType, Value, Key),

@@ -13,7 +13,7 @@
 
 -spec connect(address(), port_number()) -> {ok, connection()} | {error, term()}.
 connect(Address, Port) ->
-    connect(Address, Port, []).
+    aqlc_tcp:start_link(Address, Port).
 
 -spec connect(address(), port_number(), [connect_option()]) ->
     {ok, connection()} | {error, term()}.

@@ -3,7 +3,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/3, stop/1, send/2]).
+-export([start_link/2, start_link/3, stop/1, send/2]).
 
 %% gen_server callbacks.
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
@@ -11,6 +11,10 @@
 -include("aqlc.hrl").
 
 -record(state, {socket}).
+
+-spec start_link(address(), port_number()) -> {ok, pid()} | {error, term()}.
+start_link(Address, Port) ->
+    start_link(Address, Port, []).
 
 -spec start_link(address(), port_number(), [connect_option()]) -> {ok, pid()} | {error, term()}.
 start_link(Address, Port, Options) ->

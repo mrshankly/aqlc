@@ -47,7 +47,7 @@ start_transaction(Connection) ->
 
 -spec commit_transaction(connection(), binary()) -> ok | {error, term()}.
 commit_transaction(Connection, Transaction) ->
-    Message = aqlc_pb:encode_msg(#'Request'{type = 'COMMIT_TRANSACTION', transaction = Transaction}),
+    Message = aql_pb:encode_msg(#'Request'{type = 'COMMIT_TRANSACTION', transaction = Transaction}),
     case aqlc_tcp:send(Connection, Message) of
         {ok, RawResponse} ->
             case aql_pb:decode_msg(RawResponse, 'ACTransactionResponse') of
@@ -62,7 +62,7 @@ commit_transaction(Connection, Transaction) ->
 
 -spec abort_transaction(connection(), binary()) -> ok | {error, term()}.
 abort_transaction(Connection, Transaction) ->
-    Message = aqlc_pb:encode_msg(#'Request'{type = 'ABORT_TRANSACTION', transaction = Transaction}),
+    Message = aql_pb:encode_msg(#'Request'{type = 'ABORT_TRANSACTION', transaction = Transaction}),
     case aqlc_tcp:send(Connection, Message) of
         {ok, RawResponse} ->
             case aql_pb:decode_msg(RawResponse, 'ACTransactionResponse') of
@@ -113,14 +113,14 @@ query(Connection, Query, Transaction) ->
 equery(Connection, Query, Key) ->
     case rewrite_query(Connection, Query, Key) of
         {ok, Request} ->
-            case aqlc_tcp:send(Connection, aqlc_pc:encode_msg(Request)) of
+            case aqlc_tcp:send(Connection, aql_pb:encode_msg(Request)) of
                 {ok, Response} ->
                     decode_response(Response);
                 Error ->
                     Error
             end;
         {ok, Request, Metadata} ->
-            case aqlc_tcp:send(Connection, aqlc_pc:encode_msg(Request)) of
+            case aqlc_tcp:send(Connection, aql_pb:encode_msg(Request)) of
                 {ok, Response} ->
                     decode_response(Response, Metadata, Key);
                 Error ->
@@ -134,7 +134,7 @@ equery(Connection, Query, Key) ->
 equery(Connection, Query, Transaction, Key) ->
     case rewrite_query(Connection, Query, Key) of
         {ok, Request} ->
-            Message = aqlc_pc:encode_msg(Request#'Request'{transaction = Transaction}),
+            Message = aql_pb:encode_msg(Request#'Request'{transaction = Transaction}),
             case aqlc_tcp:send(Connection, Message) of
                 {ok, Response} ->
                     decode_response(Response);
@@ -142,7 +142,7 @@ equery(Connection, Query, Transaction, Key) ->
                     Error
             end;
         {ok, Request, Metadata} ->
-            Message = aqlc_pc:encode_msg(Request#'Request'{transaction = Transaction}),
+            Message = aql_pb:encode_msg(Request#'Request'{transaction = Transaction}),
             case aqlc_tcp:send(Connection, Message) of
                 {ok, Response} ->
                     decode_response(Response, Metadata, Key);

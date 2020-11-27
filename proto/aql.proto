@@ -16,11 +16,15 @@ message Request {
         QUERY = 0;
         METADATA = 1;
         QUERY_AND_METADATA = 2;
+        START_TRANSACTION = 3;
+        COMMIT_TRANSACTION = 4;
+        ABORT_TRANSACTION = 5;
     }
 
     Type type = 1;
     bytes query = 2;
     string tables = 3;
+    bytes transaction = 4;
 }
 
 // Represents a response message from a server to a client.
@@ -30,4 +34,13 @@ message Response {
 
     bytes metadata = 3;
     bytes metadata_error = 4;
+}
+
+message StartTransactionResponse {
+    bytes transaction = 1;
+    bytes transaction_error = 2;
+}
+
+message ACTransactionResponse {
+    bytes error = 1;
 }

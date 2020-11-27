@@ -1,8 +1,14 @@
 -module(aqlc).
 
--export([connect/2, connect/3, close/1, query/2, query/3]).
-% TODO remove
--export([parse_query/1, rewrite_query/3, fetch_metadata/2, encrypt_where/3]).
+-export([
+    connect/2, connect/3,
+    close/1,
+    start_transaction/1,
+    commit_transaction/2,
+    abort_transaction/2,
+    query/2, query/3,
+    equery/3, equery/4
+]).
 
 -include_lib("kernel/include/logger.hrl").
 
@@ -24,6 +30,51 @@ connect(Address, Port, Opts) ->
 close(Connection) ->
     aqlc_tcp:stop(Connection).
 
+-spec start_transaction(connection()) -> {ok, binary()} | {error, term()}.
+start_transaction(Connection) ->
+    Message = aql_pb:encode_msg(#'Request'{type = 'START_TRANSACTION'}),
+    case aqlc_tcp:send(Connection, Message) of
+        {ok, RawResponse} ->
+            case aql_pb:decode_msg(RawResponse, 'StartTransactionResponse') of
+                #'StartTransactionResponse'{transaction_error = Error} when Error /= <<>> ->
+                    {error, binary_to_term(Error)};
+                #'StartTransactionResponse'{transaction = Transaction} ->
+                    {ok, Transaction}
+            end;
+        Error ->
+            Error
+    end.
+
+-spec commit_transaction(connection(), binary()) -> ok | {error, term()}.
+commit_transaction(Connection, Transaction) ->
+    Message = aqlc_pb:encode_msg(#'Request'{type = 'COMMIT_TRANSACTION', transaction = Transaction}),
+    case aqlc_tcp:send(Connection, Message) of
+        {ok, RawResponse} ->
+            case aql_pb:decode_msg(RawResponse, 'ACTransactionResponse') of
+                #'ACTransactionResponse'{error = Error} when Error /= <<>> ->
+                    {error, binary_to_term(Error)};
+                _ ->
+                    ok
+            end;
+        Error ->
+            Error
+    end.
+
+-spec abort_transaction(connection(), binary()) -> ok | {error, term()}.
+abort_transaction(Connection, Transaction) ->
+    Message = aqlc_pb:encode_msg(#'Request'{type = 'ABORT_TRANSACTION', transaction = Transaction}),
+    case aqlc_tcp:send(Connection, Message) of
+        {ok, RawResponse} ->
+            case aql_pb:decode_msg(RawResponse, 'ACTransactionResponse') of
+                #'ACTransactionResponse'{error = Error} when Error /= <<>> ->
+                    {error, binary_to_term(Error)};
+                _ ->
+                    ok
+            end;
+        Error ->
+            Error
+    end.
+
 -spec query(connection(), iodata()) -> {ok, term()} | {error, term()}.
 query(Connection, Query) ->
     case parse_query(Query) of
@@ -40,16 +91,58 @@ query(Connection, Query) ->
     end.
 
 -spec query(connection(), iodata(), binary()) -> {ok, term()} | {error, term()}.
-query(Connection, Query, Key) ->
-    case rewrite_query(Connection, Query, Key) of
-        {ok, Message} ->
+query(Connection, Query, Transaction) ->
+    case parse_query(Query) of
+        {ok, [AST]} ->
+            Message = aql_pb:encode_msg(#'Request'{
+                type = 'QUERY',
+                query = term_to_binary(AST),
+                transaction = Transaction
+            }),
             case aqlc_tcp:send(Connection, Message) of
                 {ok, Response} ->
                     decode_response(Response);
                 Error ->
                     Error
             end;
-        {ok, Message, Metadata} ->
+        {error, Reason, Line} ->
+            {error, {Reason, Line}}
+    end.
+
+-spec equery(connection(), iodata(), binary()) -> {ok, term()} | {error, term()}.
+equery(Connection, Query, Key) ->
+    case rewrite_query(Connection, Query, Key) of
+        {ok, Request} ->
+            case aqlc_tcp:send(Connection, aqlc_pc:encode_msg(Request)) of
+                {ok, Response} ->
+                    decode_response(Response);
+                Error ->
+                    Error
+            end;
+        {ok, Request, Metadata} ->
+            case aqlc_tcp:send(Connection, aqlc_pc:encode_msg(Request)) of
+                {ok, Response} ->
+                    decode_response(Response, Metadata, Key);
+                Error ->
+                    Error
+            end;
+        Error = {error, _Reason} ->
+            Error
+    end.
+
+-spec equery(connection(), iodata(), binary(), binary()) -> {ok, term()} | {error, term()}.
+equery(Connection, Query, Transaction, Key) ->
+    case rewrite_query(Connection, Query, Key) of
+        {ok, Request} ->
+            Message = aqlc_pc:encode_msg(Request#'Request'{transaction = Transaction}),
+            case aqlc_tcp:send(Connection, Message) of
+                {ok, Response} ->
+                    decode_response(Response);
+                Error ->
+                    Error
+            end;
+        {ok, Request, Metadata} ->
+            Message = aqlc_pc:encode_msg(Request#'Request'{transaction = Transaction}),
             case aqlc_tcp:send(Connection, Message) of
                 {ok, Response} ->
                     decode_response(Response, Metadata, Key);
@@ -98,7 +191,7 @@ rewrite_query(Connection, Query, Key) ->
                     ?T_TABLE(Name, Policy, EncryptedCols, FKeys, Indexes, PartitionCol)
                 ),
             {ok,
-                aql_pb:encode_msg(#'Request'{type = 'QUERY', query = term_to_binary(EncryptedAST)})};
+                #'Request'{type = 'QUERY', query = term_to_binary(EncryptedAST)}};
 
         % Rewrite all `INSERT` queries. Values must be encrypted according to encryption type
         % specified in the `CREATE` query.
@@ -106,12 +199,12 @@ rewrite_query(Connection, Query, Key) ->
             {ok, Metadata} = fetch_metadata(Connection, Table),
             EncryptedValues = encrypt_values(Metadata, [], Values, Key),
             Insert = ?INSERT_CLAUSE({Table, ?PARSER_WILDCARD, EncryptedValues}),
-            {ok, aql_pb:encode_msg(#'Request'{type = 'QUERY', query = term_to_binary(Insert)})};
+            {ok, #'Request'{type = 'QUERY', query = term_to_binary(Insert)}};
         {ok, [?INSERT_CLAUSE({Table, Keys, Values})]} ->
             {ok, Metadata} = fetch_metadata(Connection, Table),
             EncryptedValues = encrypt_values(Metadata, Keys, Values, Key),
             Insert = ?INSERT_CLAUSE({Table, Keys, EncryptedValues}),
-            {ok, aql_pb:encode_msg(#'Request'{type = 'QUERY', query = term_to_binary(Insert)})};
+            {ok, #'Request'{type = 'QUERY', query = term_to_binary(Insert)}};
 
         % Similar to `INSERT`, values present in `UPDATE` queries must be encrypted.
         {ok, [?UPDATE_CLAUSE({Table, {set, Operations}, Constraint})]} ->
@@ -119,7 +212,7 @@ rewrite_query(Connection, Query, Key) ->
             EncryptedOperations = encrypt_operations(Metadata, Operations, Key),
             [EncryptedConstraint] = encrypt_operations(Metadata, [Constraint], Key),
             Update = ?UPDATE_CLAUSE({Table, {set, EncryptedOperations}, EncryptedConstraint}),
-            {ok, aql_pb:encode_msg(#'Request'{type = 'QUERY', query = term_to_binary(Update)})};
+            {ok, #'Request'{type = 'QUERY', query = term_to_binary(Update)}};
 
         % Encrypt where clause of `SELECT` queries, the result also needs to be decrypted.
         % For this reason we return a three element tuple, where the third element is the
@@ -129,11 +222,11 @@ rewrite_query(Connection, Query, Key) ->
             {ok, Metadata} = fetch_metadata(Connection, Table),
             EncryptedWhere = encrypt_where(Metadata, Where, Key),
             Select = ?SELECT_CLAUSE({Table, Projection, EncryptedWhere}),
-            {ok, aql_pb:encode_msg(#'Request'{type = 'QUERY', query = term_to_binary(Select)}), Metadata};
+            {ok, #'Request'{type = 'QUERY', query = term_to_binary(Select)}, Metadata};
 
         {ok, [AST]} ->
             ?LOG_DEBUG("SKIP QUERY REWRITE: ~p", [AST]),
-            {ok, aql_pb:encode_msg(#'Request'{type = 'QUERY', query = term_to_binary(AST)})};
+            {ok, #'Request'{type = 'QUERY', query = term_to_binary(AST)}};
 
         {error, Reason, Line} ->
             {error, {Reason, Line}}

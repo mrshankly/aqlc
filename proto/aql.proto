@@ -42,5 +42,6 @@ message StartTransactionResponse {
 }
 
 message ACTransactionResponse {
-    bytes error = 1;
+    bool ok = 1;
+    bytes error = 2;
 }

@@ -51,10 +51,10 @@ commit_transaction(Connection, Transaction) ->
     case aqlc_tcp:send(Connection, Message) of
         {ok, RawResponse} ->
             case aql_pb:decode_msg(RawResponse, 'ACTransactionResponse') of
-                #'ACTransactionResponse'{error = Error} when Error /= <<>> ->
-                    {error, binary_to_term(Error)};
-                _ ->
-                    ok
+                #'ACTransactionResponse'{ok = true} ->
+                    ok;
+                #'ACTransactionResponse'{ok = false, error = Error} ->
+                    {error, binary_to_term(Error)}
             end;
         Error ->
             Error
@@ -66,10 +66,10 @@ abort_transaction(Connection, Transaction) ->
     case aqlc_tcp:send(Connection, Message) of
         {ok, RawResponse} ->
             case aql_pb:decode_msg(RawResponse, 'ACTransactionResponse') of
-                #'ACTransactionResponse'{error = Error} when Error /= <<>> ->
-                    {error, binary_to_term(Error)};
-                _ ->
-                    ok
+                #'ACTransactionResponse'{ok = true} ->
+                    ok;
+                #'ACTransactionResponse'{ok = false, error = Error} ->
+                    {error, binary_to_term(Error)}
             end;
         Error ->
             Error

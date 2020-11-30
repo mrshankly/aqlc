@@ -1,4 +1,4 @@
 [{<<"paillier">>,
   {git,"https://github.com/mrshankly/erlang-paillier",
-       {ref,"0ffa99c36baa903c994ba3d8f0a134fe49574a83"}},
+       {ref,"ff75aeaf984dedd42c7b1c361b97737799ee3f32"}},
   0}].

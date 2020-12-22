@@ -1,4 +1,8 @@
-[{<<"paillier">>,
-  {git,"https://github.com/mrshankly/erlang-paillier",
-       {ref,"ff75aeaf984dedd42c7b1c361b97737799ee3f32"}},
-  0}].
+{"1.2.0",
+[{<<"paillier">>,{pkg,<<"paillier">>,<<"1.0.0">>},0}]}.
+[
+{pkg_hash,[
+ {<<"paillier">>, <<"65295A561BD3379961563B4F1E1EC41096139EF6E701AB61BF0D117B009C7DE4">>}]},
+{pkg_hash_ext,[
+ {<<"paillier">>, <<"C4C91422E4EE60152717D0EC0D30E77EE3502F4ED73CDB01A24ACE6650F2333D">>}]}
+].

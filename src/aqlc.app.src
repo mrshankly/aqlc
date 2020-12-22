@@ -1,6 +1,10 @@
 {application, aqlc, [
-    {description, "AQL Client"},
-    {vsn, "0.1.0"},
-    %% {modules, []},
-    {applications, [kernel, stdlib, crypto, ssl]}
+    {description, "Erlang client for AntidoteDB's SQL interface (AQL)"},
+    {vsn, "1.0.0"},
+    {env, []},
+    {modules, []},
+    {registered, []},
+    {applications, [kernel, stdlib, crypto, ssl]},
+    {licenses, ["Apache-2.0"]},
+    {links, [{"GitHub", "https://github.com/mrshankly/aqlc"}]}
 ]}.

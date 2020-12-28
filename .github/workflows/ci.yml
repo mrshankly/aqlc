@@ -9,7 +9,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        otp: [23.2, 22.3, 21.3]
+        otp: [23.2, 22.3]
     runs-on: ubuntu-latest
 
     steps:

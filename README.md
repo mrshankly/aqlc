@@ -4,7 +4,8 @@ aqlc
 [![CI](https://github.com/mrshankly/aqlc/workflows/CI/badge.svg)](https://github.com/mrshankly/aqlc/actions?query=workflow%3ACI)
 [![Hex.pm](https://img.shields.io/hexpm/v/aqlc)](https://hex.pm/packages/aqlc)
 
-Erlang client for AntidoteDB's SQL interface (AQL).
+Erlang client for AntidoteDB's SQL interface (AQL). You will need at least
+Erlang/OTP 22.0, this library won't compile in previous versions.
 
 # Quick Start
 

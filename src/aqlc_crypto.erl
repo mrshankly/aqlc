@@ -13,9 +13,6 @@
     deterministic_encrypt/2,
     deterministic_decrypt/2,
 
-    ope_encrypt/2,
-    ope_decrypt/2,
-
     paillier_encrypt/2,
     paillier_decrypt/2
 ]).
@@ -54,18 +51,6 @@ deterministic_encrypt(Plaintext, {Key, _, _}) ->
 deterministic_decrypt(Ciphertext, {Key, _, _}) ->
     crypto:crypto_one_time(?CIPHER, Key, ?DETERMINISTIC_IV, Ciphertext, false).
 
--spec ope_encrypt(Plaintext :: number(), Key :: key()) -> number().
-ope_encrypt(Plaintext, {_, Key, _}) ->
-    RawCiphertext = os:cmd(io_lib:format("ope -e '~s' '~B'~n", [Key, Plaintext])),
-    {Ciphertext, _} = string:to_integer(RawCiphertext),
-    Ciphertext.
-
--spec ope_decrypt(Ciphertext :: number(), Key :: key()) -> number().
-ope_decrypt(Ciphertext, {_, Key, _}) ->
-    RawPlaintext = os:cmd(io_lib:format("ope -d '~s' '~B'~n", [Key, Ciphertext])),
-    {Plaintext, _} = string:to_integer(RawPlaintext),
-    Plaintext.
-
 paillier_encrypt(Plaintext, {_, _, {PublicKey, _PrivateKey}}) ->
     RawCiphertext = paillier:encrypt(PublicKey, Plaintext),
     binary:decode_unsigned(RawCiphertext).
@@ -87,23 +72,6 @@ probabilistic_test() ->
     Foo = probabilistic_encrypt(<<"foo">>, Key),
     ?assertNotEqual(probabilistic_encrypt(<<"foo">>, Key), Foo),
     ?assertEqual(probabilistic_decrypt(Foo, Key), <<"foo">>).
-
-ope_test() ->
-    Key = generate_key(),
-    lists:foreach(
-        fun(X) ->
-            ENC_X = ope_encrypt(X, Key),
-            ENC_XP1 = ope_encrypt(X + 1, Key),
-            % Should be deterministic.
-            ?assertEqual(ope_encrypt(X, Key), ENC_X),
-            % Should preserve the order.
-            ?assertEqual(X < X + 1, ENC_X < ENC_XP1),
-            % Should decrypt ok.
-            ?assertEqual(ope_decrypt(ENC_X, Key), X),
-            ?assertEqual(ope_decrypt(ENC_XP1, Key), X + 1)
-        end,
-        lists:seq(1, 25)
-    ).
 
 paillier_test() ->
     Key = generate_key(),

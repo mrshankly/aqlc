@@ -12,9 +12,6 @@
 
 -export([parse_query/1]).
 
-% TODO
-% update TestTest SET Cunt = Cunt + 1 where Id = 1;
-
 -include_lib("kernel/include/logger.hrl").
 
 -include("aqlc.hrl").
@@ -282,8 +279,6 @@ decrypt_value(encrypted, Value, Key) ->
     binary_to_term(aqlc_crypto:probabilistic_decrypt(Value, Key));
 decrypt_value(deterministic_encrypted, Value, Key) ->
     binary_to_term(aqlc_crypto:deterministic_decrypt(Value, Key));
-decrypt_value(order_preserving_encrypted, Value, Key) ->
-    aqlc_crypto:ope_decrypt(Value, Key);
 decrypt_value(homomorphic_encrypted, Value, Key) ->
     aqlc_crypto:paillier_decrypt(Value, Key);
 decrypt_value(plain, Value, _Key) ->
@@ -308,8 +303,6 @@ encrypt_value(encrypted, Value, Key) ->
     aqlc_crypto:probabilistic_encrypt(term_to_binary(Value), Key);
 encrypt_value(deterministic_encrypted, Value, Key) ->
     aqlc_crypto:deterministic_encrypt(term_to_binary(Value), Key);
-encrypt_value(order_preserving_encrypted, Value, Key) ->
-    aqlc_crypto:ope_encrypt(Value, Key);
 encrypt_value(homomorphic_encrypted, Value, Key) ->
     {_, _, {{_, _, _, RawNSquared}, _}} = Key,
     NSquared = binary:decode_unsigned(RawNSquared),

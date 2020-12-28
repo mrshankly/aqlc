@@ -1,14 +1,4 @@
-%%%-------------------------------------------------------------------
-%%% @author joao
-%%% @copyright (C) 2017, <COMPANY>
-%%% @doc
-%%%
-%%% @end
-%%% Created : 16. ago 2017 11:10
-%%%-------------------------------------------------------------------
 -module(crp).
-
--author("joao").
 
 -define(ERR_UW_DW,
     "A table with 'Update-Wins' foreign keys cannot be linked to a table with 'Delete-Wins' foreign keys"

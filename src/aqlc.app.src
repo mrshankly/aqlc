@@ -5,6 +5,14 @@
     {modules, []},
     {registered, []},
     {applications, [kernel, stdlib, crypto, ssl]},
+    {files, [
+        "{src,include}/*.{hrl,erl,app.src,yrl,xrl}",
+        "proto/aql.proto",
+        "rebar.config",
+        "rebar.lock",
+        "LICENSE",
+        "README.md"
+    ]},
     {licenses, ["Apache-2.0"]},
     {links, [{"GitHub", "https://github.com/mrshankly/aqlc"}]}
 ]}.

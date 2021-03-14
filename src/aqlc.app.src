@@ -1,6 +1,6 @@
 {application, aqlc, [
     {description, "Erlang client for AntidoteDB's SQL interface (AQL)"},
-    {vsn, "1.0.0"},
+    {vsn, "1.0.1"},
     {env, []},
     {modules, []},
     {registered, []},

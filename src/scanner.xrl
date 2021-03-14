@@ -142,5 +142,7 @@ Erlang code.
 
 -include("parser.hrl").
 
+strip_value([$', Value, $']) ->
+	Value;
 strip_value(Value) ->
 	string:strip(Value, both, $').

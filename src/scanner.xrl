@@ -4,6 +4,7 @@
 Definitions.
 
 WhiteSpace = ([\000-\s]|%.*)
+Comment = --.*?\n
 Equality = =
 NotEquality = (<>)
 Greater = >
@@ -25,6 +26,9 @@ String = '([^']*?)'
 %% Rules
 %%====================================================================
 Rules.
+
+% Ignore comments.
+{Comment} : skip_token.
 
 % show related tokens
 (show|SHOW) : {token, ?SHOW_CLAUSE(TokenChars)}.
@@ -108,7 +112,6 @@ Rules.
 % boolean atoms
 (false|FALSE) : {token, ?PARSER_BOOLEAN(false)}.
 (true|TRUE) : {token, ?PARSER_BOOLEAN(true)}.
-
 
 {CharValues}+ : A = list_to_atom(TokenChars),
 				{token, ?PARSER_ATOM(A)}.

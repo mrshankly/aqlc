@@ -81,7 +81,7 @@ abort_transaction(Connection, Transaction) ->
 query(Connection, Query) ->
     case parse_query(Query) of
         {ok, [AST]} ->
-            Message = aql_pb:encode_msg(#'Request'{type = 'QUERY', query = term_to_binary(AST)}),
+            Message = aql_pb:encode_msg(#'Request'{type = 'RAW_QUERY', raw_query = term_to_binary(AST)}),
             case aqlc_tcp:send(Connection, Message) of
                 {ok, Response} ->
                     decode_response(Response);
@@ -97,8 +97,8 @@ query(Connection, Query, Transaction) ->
     case parse_query(Query) of
         {ok, [AST]} ->
             Message = aql_pb:encode_msg(#'Request'{
-                type = 'QUERY',
-                query = term_to_binary(AST),
+                type = 'RAW_QUERY',
+                raw_query = term_to_binary(AST),
                 transaction = Transaction
             }),
             case aqlc_tcp:send(Connection, Message) of
@@ -193,7 +193,7 @@ rewrite_query(Connection, Query, Key) ->
                     ?T_TABLE(Name, Policy, EncryptedCols, FKeys, Indexes, PartitionCol)
                 ),
             {ok,
-                #'Request'{type = 'QUERY', query = term_to_binary(EncryptedAST)}};
+                #'Request'{type = 'RAW_QUERY', raw_query = term_to_binary(EncryptedAST)}};
 
         % Rewrite all `INSERT` queries. Values must be encrypted according to encryption type
         % specified in the `CREATE` query.
@@ -201,12 +201,12 @@ rewrite_query(Connection, Query, Key) ->
             {ok, Metadata} = fetch_metadata(Connection, Table),
             EncryptedValues = encrypt_values(Metadata, [], Values, Key),
             Insert = ?INSERT_CLAUSE({Table, ?PARSER_WILDCARD, EncryptedValues}),
-            {ok, #'Request'{type = 'QUERY', query = term_to_binary(Insert)}};
+            {ok, #'Request'{type = 'RAW_QUERY', raw_query = term_to_binary(Insert)}};
         {ok, [?INSERT_CLAUSE({Table, Keys, Values})]} ->
             {ok, Metadata} = fetch_metadata(Connection, Table),
             EncryptedValues = encrypt_values(Metadata, Keys, Values, Key),
             Insert = ?INSERT_CLAUSE({Table, Keys, EncryptedValues}),
-            {ok, #'Request'{type = 'QUERY', query = term_to_binary(Insert)}};
+            {ok, #'Request'{type = 'RAW_QUERY', raw_query = term_to_binary(Insert)}};
 
         % Similar to `INSERT`, values present in `UPDATE` queries must be encrypted.
         {ok, [?UPDATE_CLAUSE({Table, {set, Operations}, Constraint})]} when is_list(Constraint) ->
@@ -214,13 +214,13 @@ rewrite_query(Connection, Query, Key) ->
             EncryptedOperations = encrypt_operations(Metadata, Operations, Key),
             EncryptedConstraint = encrypt_operations(Metadata, Constraint, Key),
             Update = ?UPDATE_CLAUSE({Table, {set, EncryptedOperations}, EncryptedConstraint}),
-            {ok, #'Request'{type = 'QUERY', query = term_to_binary(Update)}};
+            {ok, #'Request'{type = 'RAW_QUERY', raw_query = term_to_binary(Update)}};
         {ok, [?UPDATE_CLAUSE({Table, {set, Operations}, Constraint})]} ->
             {ok, Metadata} = fetch_metadata(Connection, Table),
             EncryptedOperations = encrypt_operations(Metadata, Operations, Key),
             [EncryptedConstraint] = encrypt_operations(Metadata, [Constraint], Key),
             Update = ?UPDATE_CLAUSE({Table, {set, EncryptedOperations}, EncryptedConstraint}),
-            {ok, #'Request'{type = 'QUERY', query = term_to_binary(Update)}};
+            {ok, #'Request'{type = 'RAW_QUERY', raw_query = term_to_binary(Update)}};
 
         % Encrypt where clause of `SELECT` queries, the result also needs to be decrypted.
         % For this reason we return a three element tuple, where the third element is the
@@ -230,11 +230,11 @@ rewrite_query(Connection, Query, Key) ->
             {ok, Metadata} = fetch_metadata(Connection, Table),
             EncryptedWhere = encrypt_where(Metadata, Where, Key),
             Select = ?SELECT_CLAUSE({Table, Projection, EncryptedWhere}),
-            {ok, #'Request'{type = 'QUERY', query = term_to_binary(Select)}, Metadata};
+            {ok, #'Request'{type = 'RAW_QUERY', raw_query = term_to_binary(Select)}, Metadata};
 
         {ok, [AST]} ->
             ?LOG_DEBUG("SKIP QUERY REWRITE: ~p", [AST]),
-            {ok, #'Request'{type = 'QUERY', query = term_to_binary(AST)}};
+            {ok, #'Request'{type = 'RAW_QUERY', raw_query = term_to_binary(AST)}};
 
         {error, Reason, Line} ->
             {error, {Reason, Line}}

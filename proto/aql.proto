@@ -2,29 +2,35 @@ syntax = "proto3";
 
 // Represents a request message from a client to a server.
 //
-// The `type` field is mandatory, the fields `query` and `tables` may
+// The `type` field is mandatory, the fields `query`, `raw_query` and `tables` may
 // or may not be mandatory, depending on the request type.
 //
-// The field `query` is mandatory when the request type is either `QUERY`
-// or `QUERY_AND_METADATA`. `query` must contain an AQL query.
+// The field `query` is mandatory when the request type is `QUERY`. `query` must
+// contain an AQL query in string form.
+//
+// The field `raw_query` is mandatory when the request type is either `RAW_QUERY`
+// or `RAW_QUERY_AND_METADATA`. `raw_query` must contain the AST of an AQL query.
 //
 // The field `tables` is mandatory when the request type is either `METADATA`
-// or `QUERY_AND_METADATA`. `tables` must contain a comma separated list of
+// or `RAW_QUERY_AND_METADATA`. `tables` must contain a comma separated list of
 // table names, e.g. "table1,table2,table3".
+
 message Request {
     enum Type {
         QUERY = 0;
-        METADATA = 1;
-        QUERY_AND_METADATA = 2;
-        START_TRANSACTION = 3;
-        COMMIT_TRANSACTION = 4;
-        ABORT_TRANSACTION = 5;
+        RAW_QUERY = 1;
+        METADATA = 2;
+        RAW_QUERY_AND_METADATA = 3;
+        START_TRANSACTION = 4;
+        COMMIT_TRANSACTION = 5;
+        ABORT_TRANSACTION = 6;
     }
 
     Type type = 1;
-    bytes query = 2;
-    string tables = 3;
-    bytes transaction = 4;
+    string query = 2;
+    bytes raw_query = 3;
+    string tables = 4;
+    bytes transaction = 5;
 }
 
 // Represents a response message from a server to a client.

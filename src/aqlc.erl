@@ -10,8 +10,6 @@
     equery/3, equery/4
 ]).
 
--export([parse_query/1]).
-
 -include_lib("kernel/include/logger.hrl").
 
 -include("aqlc.hrl").

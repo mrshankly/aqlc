@@ -157,17 +157,17 @@ equery(Connection, Query, Transaction, Key) ->
 
 decode_response(RawResponse) ->
     case aql_pb:decode_msg(RawResponse, 'Response') of
-        #'Response'{query_error = Error} when Error /= <<>> ->
+        #'Response'{raw_query_error = Error} when Error /= <<>> ->
             {error, binary_to_term(Error)};
-        #'Response'{query = QueryResponse} ->
+        #'Response'{raw_query = QueryResponse} ->
             {ok, binary_to_term(QueryResponse)}
     end.
 
 decode_response(RawResponse, Metadata, Key) ->
     case aql_pb:decode_msg(RawResponse, 'Response') of
-        #'Response'{query_error = Error} when Error /= <<>> ->
+        #'Response'{raw_query_error = Error} when Error /= <<>> ->
             {error, binary_to_term(Error)};
-        #'Response'{query = QueryResponse} ->
+        #'Response'{raw_query = QueryResponse} ->
             [Values] = binary_to_term(QueryResponse),
             {ok, [decrypt_values(Metadata, Values, Key)]}
     end.

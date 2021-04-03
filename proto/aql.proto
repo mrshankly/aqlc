@@ -35,11 +35,14 @@ message Request {
 
 // Represents a response message from a server to a client.
 message Response {
-    bytes query = 1;
-    bytes query_error = 2;
+    string query = 1;
+    string query_error = 2;
 
-    bytes metadata = 3;
-    bytes metadata_error = 4;
+    bytes raw_query = 3;
+    bytes raw_query_error = 4;
+
+    bytes metadata = 5;
+    bytes metadata_error = 6;
 }
 
 message StartTransactionResponse {
